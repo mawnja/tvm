@@ -352,6 +352,16 @@ class WellFormedChecker : public relax::ExprVisitor,
             << after_normalize);
       }
     }
+
+    if (auto func_validate = op_map_validate_.get(call->op, nullptr); func_validate != nullptr) {
+      try {
+        func_validate(GetRef<Call>(call));
+      } catch (std::exception& err) {
+        Malformed(Diagnostic::Error(call) << "Operator-specific validation (FValidate) for "
+                                          << call->op << " identified error: \n"
+                                          << err.what());
+      }
+    }
   }
 
   void VisitExpr_(const IfNode* op) final {
@@ -419,6 +429,18 @@ class WellFormedChecker : public relax::ExprVisitor,
     }
 
     this->VisitVarDef(binding->var);
+
+    if (check_struct_info_ && binding->var->struct_info_.defined() &&
+        binding->value->struct_info_.defined()) {
+      auto expr_sinfo = GetStructInfo(binding->value);
+      auto var_sinfo = GetStructInfo(binding->var);
+      if (!IsBaseOf(var_sinfo, expr_sinfo)) {
+        Malformed(Diagnostic::Error(binding->var)
+                  << "Expression of type " << expr_sinfo
+                  << " cannot be assigned to a variable of type " << var_sinfo);
+      }
+    }
+
     if (is_lambda) {
       recur_vars_.erase(binding->var);
     }
@@ -574,6 +596,7 @@ class WellFormedChecker : public relax::ExprVisitor,
   std::unordered_map<tir::Var, const FunctionNode*> symbolic_var_func_map_;
 
   tvm::OpAttrMap<FNormalize> op_map_normalize_ = Op::GetAttrMap<FNormalize>("FNormalize");
+  tvm::OpAttrMap<FValidate> op_map_validate_ = Op::GetAttrMap<FValidate>("FValidate");
 };
 
 bool WellFormed(Variant<IRModule, Function> obj, bool check_struct_info) {

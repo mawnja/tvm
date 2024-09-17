@@ -15,11 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-tvm.runtime
------------
-
-.. automodule:: tvm.runtime
+tvm.tir
+-------
+.. automodule:: tvm.tir
    :members:
    :imported-members:
-   :exclude-members: NDArray
-   :autosummary:
+   :exclude-members: PrimExpr, const, StmtSRef, BlockScope, ScheduleState, Schedule, ScheduleError

@@ -91,7 +91,7 @@ def get_constant(
     # Convert if possible
     if isinstance(var, relax.Var) and var.name_hint in params:
         # When converting a parameter to a constant, update references to it as well.
-        _, value = params.pop(var.name_hint)
+        _, value = params[var.name_hint]
         const_value = relax.const(value)
         graph_nodes[var.name_hint] = const_value
         return const_value
@@ -1135,6 +1135,8 @@ class Expand(OnnxOpConverter):
             # For some reason, onnx allows target shapes to be smaller than input shapes.
             # We need to go correct it.
             data_shape = [dim.value for dim in data.struct_info.shape]
+            # Dimensions are right alignment.
+            data_shape = [1] * (len(new_shape) - len(data_shape)) + data_shape
             # Fix small target shapes.
             for i, s in enumerate(new_shape):
                 if i < len(data_shape) and s < data_shape[i]:
@@ -2150,7 +2152,7 @@ class ONNXGraphImporter:
                 init_var = self._new_var(var_name, shape=array.shape, dtype=array.dtype)
                 self._nodes[init_tensor.name] = init_var
                 # We need to keep track of both the real value and variable for this variable.
-                self._params[init_tensor.name] = (init_var, array)
+                self._params[var_name] = (init_var, array)
             # Otherwise we can use the weight as a constant.
             else:
                 self._nodes[init_tensor.name] = relax.const(array)
