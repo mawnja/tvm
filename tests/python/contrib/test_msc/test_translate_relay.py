@@ -18,8 +18,6 @@
 
 """ Test translate from relay. """
 
-import numpy as np
-
 import torch
 from torch import fx
 from torch.nn import Module
@@ -66,7 +64,7 @@ def verify_model(torch_model, input_info, opt_config=None, codegen_config=None, 
     expected = tvm.relax.transform.CanonicalizeBindings()(expected)
 
     # graph from relay
-    datas = [np.random.rand(*i[0]).astype(i[1]) for i in input_info]
+    datas = [msc_utils.random_data(i) for i in input_info]
     torch_datas = [torch.from_numpy(i) for i in datas]
     with torch.no_grad():
         scripted_model = torch.jit.trace(torch_model, tuple(torch_datas)).eval()  # type: ignore
@@ -1084,6 +1082,28 @@ def test_max():
             return torch.max(x, y)
 
     verify_model(Max(), [([256, 256], "float32"), ([256, 256], "float32")])
+
+
+def test_cat():
+    """test relay to relax for cat"""
+
+    class Cat1(Module):
+        def forward(self, data, data1, data2):
+            return torch.cat((data, data1, data2), dim=1)
+
+    class Cat2(Module):
+        def forward(self, data):
+            const1 = torch.ones((1, 3, 10, 10), dtype=torch.float32)
+            const2 = torch.ones((1, 3, 10, 10), dtype=torch.float32)
+            return torch.cat((data, const1, const2), dim=1)
+
+    input_info = [
+        ([1, 3, 10, 10], "float32"),
+        ([1, 3, 10, 10], "float32"),
+        ([1, 3, 10, 10], "float32"),
+    ]
+    verify_model(Cat1(), input_info, build_target="llvm")
+    verify_model(Cat2(), [([1, 3, 10, 10], "float32")], build_target="llvm")
 
 
 def test_name_string_with_colon():

@@ -83,6 +83,7 @@ from tvm.tir.expr import (
 from tvm.tir.generic import cast
 
 from . import _ffi_api, frame
+from .external_kernel import call_kernel
 
 # pylint: enable=unused-import
 
@@ -521,6 +522,11 @@ def _as_range(dom: Union[ir.Range, List[PrimExpr]]) -> ir.Range:
     if isinstance(dom, ir.Range):
         return dom
     if isinstance(dom, (list, tuple)):
+        from tvm.arith import Analyzer  # pylint: disable=import-outside-toplevel
+
+        extent = Analyzer().simplify(dom[1] - dom[0])
+        if isinstance(extent, tir.IntImm):
+            return ir.Range.from_min_extent(dom[0], extent)
         return ir.Range(dom[0], dom[1])
     if hasattr(dom, "dtype"):
         return ir.Range(IntImm(dom.dtype, 0), dom)
@@ -1943,7 +1949,6 @@ tvm_call_cpacked = call_cpacked
 tvm_call_packed_lowered = call_packed_lowered
 tvm_call_cpacked_lowered = call_cpacked_lowered
 
-
 # pylint: enable=invalid-name
 
 
@@ -2255,4 +2260,5 @@ __all__ = [
     "Range",
     "vscale",
     "get_active_lane_mask",
+    "call_kernel",
 ]
